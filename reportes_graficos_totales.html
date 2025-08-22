@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Defensoría 6 — Reportes Gráficos</title>
+  <style>
+    :root{
+      --primary:#4f46e5; --secondary:#6366f1;
+      --bg:#f3f4f6; --surface:#ffffff; --text:#111827; --muted:#6b7280;
+      --radius:14px; --shadow:0 6px 18px rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .navbar{background:linear-gradient(90deg,var(--primary),var(--secondary));color:#fff;
+      padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow)}
+    .brand{font-weight:800;font-size:1rem;letter-spacing:.2px}
+    .cards{display:flex;flex-direction:column;align-items:center;padding:1rem;gap:1rem}
+    .card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1rem;width:100%;max-width:500px;display:flex;flex-direction:column;align-items:center}
+    .card h3{font-size:1rem;margin-bottom:.5rem;color:var(--muted);align-self:flex-start}
+    .chart{width:100%;height:260px;position:relative}
+    .summary{margin-top:.5rem;font-size:.9rem;color:var(--text);text-align:center;white-space:pre-line}
+    .note{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;padding:6px 8px;border-radius:8px;font-size:.8rem;margin-bottom:.5rem;width:100%}
+    @media(max-width:600px){.chart{height:200px}}
+    @media print {.navbar{display:none} body{background:#fff} .card{box-shadow:none;border:1px solid #ddd}}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+</head>
+<body>
+  <div class="navbar">
+    <div class="brand">Defensoría Civil y Comercial 6 — Reportes Gráficos</div>
+    <div class="muted">Distribuciones estadísticas</div>
+  </div>
+
+  <div class="cards">
+    <div class="card" id="mod-causas">
+      <h3>Causas</h3>
+      <div id="alert-causas" class="note" style="display:none"></div>
+      <div class="chart"><canvas id="pie-causas"></canvas></div>
+      <div id="inf-causas" class="summary"></div>
+    </div>
+
+    <div class="card" id="mod-partes">
+      <h3>Partes</h3>
+      <div id="alert-partes" class="note" style="display:none"></div>
+      <div class="chart"><canvas id="pie-partes"></canvas></div>
+      <div id="inf-partes" class="summary"></div>
+    </div>
+
+    <div class="card" id="mod-documentos">
+      <h3>Documentos</h3>
+      <div id="alert-documentos" class="note" style="display:none"></div>
+      <div class="chart"><canvas id="pie-documentos"></canvas></div>
+      <div id="inf-documentos" class="summary"></div>
+    </div>
+
+    <div class="card" id="mod-proteccion">
+      <h3>Protección de Personas</h3>
+      <div id="alert-proteccion" class="note" style="display:none"></div>
+      <div class="chart"><canvas id="pie-proteccion"></canvas></div>
+      <div id="inf-proteccion" class="summary"></div>
+    </div>
+
+    <div class="card" id="mod-atencion">
+      <h3>Atención al Público</h3>
+      <div id="alert-atencion" class="note" style="display:none"></div>
+      <div class="chart"><canvas id="pie-atencion"></canvas></div>
+      <div id="inf-atencion" class="summary"></div>
+    </div>
+
+    <div class="card" id="mod-total">
+      <h3>Datos Completos en el Sistema</h3>
+      <div id="alert-total" class="note" style="display:none"></div>
+      <div class="chart"><canvas id="pie-total"></canvas></div>
+      <div id="inf-total" class="summary"></div>
+    </div>
+  </div>
+
+<script>
+const SOURCES={
+  causas:'https://defensoria6.github.io/registro-causas/',
+  partes:'https://defensoria6.github.io/datospartes/',
+  documentos:'https://defensoria6.github.io/documentos/',
+  proteccion:'https://defensoria6.github.io/proteccion-personas/',
+  atencion:'https://defensoria6.github.io/atencion-publico/',
+};
+const state={data:{},charts:{},totals:{}};
+
+function parseFirstTable(html){
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  const table=doc.querySelector('table'); if(!table)return{headers:[],rows:[]};
+  const headers=[...table.querySelectorAll('thead th')].map(th=>th.innerText.trim());
+  let body=[...table.querySelectorAll('tbody tr')];
+  if(!headers.length){const first=table.querySelector('tr');if(first){headers.push(...[...first.children].map(x=>x.innerText.trim()));body=[...table.querySelectorAll('tr')].slice(1);}}
+  const rows=body.map(tr=>{const cells=[...tr.children].map(td=>td.innerText.trim());return Object.fromEntries(headers.map((h,i)=>[normalize(h),cells[i]||'']));});
+  return{headers:headers.map(normalize),rows};
+}
+function normalize(h){return(h||'').toLowerCase().replace(/\\s+/g,' ');}
+function groupCount(arr,key){const o={};arr.forEach(r=>{const k=r[key]||'—';o[k]=(o[k]||0)+1});return o;}
+function guessKey(headers,prefs){for(const p of prefs){const f=headers.find(h=>h.includes(p));if(f)return f;}return headers[0]||'';}
+
+async function load(mod,prefs){
+  try{
+    const res=await fetch(SOURCES[mod]);const html=await res.text();
+    const parsed=parseFirstTable(html);state.data[mod]=parsed;render(mod,prefs);
+    // Save totals
+    state.totals[mod]=parsed.rows.length;
+    renderTotal();
+  }catch(e){document.getElementById('alert-'+mod).style.display='block';document.getElementById('alert-'+mod).textContent='Error cargando '+mod;}
+}
+function render(mod,prefs){
+  const dat=state.data[mod]; if(!dat)return;
+  const rows=dat.rows; const headers=dat.headers.length?dat.headers:Object.keys(rows[0]||{});
+  const key=guessKey(headers,prefs);const counts=groupCount(rows,key);const total=rows.length;
+  let detail='Total: '+total+' registros • Campo: '+key+'\\n';Object.entries(counts).forEach(([k,v])=>{detail+=k+': '+v+' ('+Math.round(v/total*100)+'%)\\n';});
+  document.getElementById('inf-'+mod).textContent=detail;
+  const cv=document.getElementById('pie-'+mod); if(state.charts[mod])state.charts[mod].destroy();
+  state.charts[mod]=new Chart(cv,{type:'pie',plugins:[ChartDataLabels],data:{labels:Object.keys(counts),datasets:[{data:Object.values(counts)}]},options:{plugins:{datalabels:{color:'#fff',font:{weight:'bold'},formatter:(v)=>v}},responsive:true,maintainAspectRatio:false}});
+}
+function renderTotal(){
+  const mods=['causas','partes','documentos','proteccion','atencion'];
+  if(!mods.every(m=>state.totals[m]!=null))return;
+  const counts=mods.map(m=>state.totals[m]); const labels=['Causas','Partes','Documentos','Protección','Atención'];
+  const total=counts.reduce((a,b)=>a+b,0);
+  let detail='Total general: '+total+' registros\\n';labels.forEach((l,i)=>{detail+=l+': '+counts[i]+' ('+Math.round(counts[i]/total*100)+'%)\\n';});
+  document.getElementById('inf-total').textContent=detail;
+  const cv=document.getElementById('pie-total'); if(state.charts['total'])state.charts['total'].destroy();
+  state.charts['total']=new Chart(cv,{type:'pie',plugins:[ChartDataLabels],data:{labels:labels,datasets:[{data:counts}]},options:{plugins:{datalabels:{color:'#fff',font:{weight:'bold'},formatter:(v)=>v}},responsive:true,maintainAspectRatio:false}});
+}
+
+window.onload=()=>{
+  load('causas',['tipo','proceso']);load('partes',['rol']);load('documentos',['tipo']);load('proteccion',['estado']);load('atencion',['motivo']);
+};
+</script>
+</body>
+</html>
