@@ -495,7 +495,7 @@
   <script type="module">
     // Importación de Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-    import { getFirestore, collection, query, onSnapshot, getDocsFromCache, getDocsFromServer } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { getFirestore, collection, query, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
     // === Configuración de Firebase ===
     const firebaseConfigCausas = {
@@ -526,7 +526,7 @@
     let datosCacheAtencion = null;
     let datosCacheCCyC = [];
     let datosCacheModo = [];
-    let charts = {};
+    let chPrincipal = null;
 
     // === Elementos DOM ===
     const landingPage = document.getElementById("landing");
@@ -538,33 +538,33 @@
     const chartSelector = document.getElementById("chartSelector");
     const filtroRango = document.getElementById("filtroRango");
 
-    // === Paletas de colores mejoradas ===
+    // === Paletas de colores ===
     const colorScales = {
-      estado: d3.scaleOrdinal().domain(["Activo", "Cerrado", "En espera", "Archivado", "Suspendido"]).range(["#2ecc71", "#e74c3c", "#f39c12", "#95a5a6", "#9b59b6"]),
-      prioridad: d3.scaleOrdinal().domain(["Alta", "Media", "Baja", "Crítica"]).range(["#e74c3c", "#f39c12", "#2ecc71", "#c0392b"]),
-      intervencion: d3.scaleOrdinal().domain(["Defensa", "Asesoramiento", "Representación", "Consulta"]).range(["#3498db", "#9b59b6", "#2ecc71", "#f1c40f"]),
-      audiencias: d3.scaleOrdinal().range(d3.schemeOranges[5]),
-      gesel: d3.scaleOrdinal().range(d3.schemeGreens[5]),
-      vencimiento: d3.scaleOrdinal().range(d3.schemePurples[5]),
-      recursos: d3.scaleOrdinal().range(d3.schemeSet1),
-      usuarioAsignado: d3.scaleOrdinal().range(d3.schemeSet3),
-      type: d3.scaleOrdinal().domain(["Consulta", "Tramite", "Asesoramiento"]).range(["#34c759", "#ff9500", "#af52de"]),
-      generic: d3.scaleOrdinal().range(d3.schemeTableau10)
+      estado: d3.scaleOrdinal(d3.schemePaired),
+      prioridad: d3.scaleOrdinal(d3.schemeSet1),
+      intervencion: d3.scaleOrdinal(d3.schemeSet2),
+      audiencias: d3.scaleOrdinal(d3.schemeOranges[7]),
+      gesel: d3.scaleOrdinal(d3.schemeGreens[7]),
+      vencimiento: d3.scaleOrdinal(d3.schemePurples[7]),
+      recursos: d3.scaleOrdinal(d3.schemeSet1),
+      usuarioAsignado: d3.scaleOrdinal(d3.schemeSet3),
+      type: d3.scaleOrdinal(["#34c759", "#ff9500", "#af52de"]),
+      generic: d3.scaleOrdinal(d3.schemeTableau10)
     };
 
     // === Lista de gráficos disponibles ===
     const chartsData = [
-      { id: "estado", name: "Estado", key: "estado", source: "causas", chartType: "bar" },
-      { id: "prioridad", name: "Prioridad", key: "prioridad", source: "causas", chartType: "bar" },
-      { id: "intervencion", name: "Intervención", key: "intervencion", source: "causas", chartType: "bar" },
-      { id: "audiencias", name: "Audiencias", key: "audiencias", dateFilter: true, source: "causas", chartType: "line" },
-      { id: "gesel", name: "Audiencia Gesel", key: "gesel", dateFilter: true, source: "causas", chartType: "line" },
-      { id: "vencimiento", name: "Vencimientos", key: "vencimiento", dateFilter: true, source: "causas", chartType: "line" },
-      { id: "recursos", name: "Recursos", key: "recursos", source: "causas", chartType: "bar" },
-      { id: "usuarioAsignado", name: "Usuario Asignado", key: "usuarioAsignado", source: "causas", chartType: "treemap" },
-      { id: "atencion", name: "Atención al Público", key: "type", source: "atencion", chartType: "bar" },
-      { id: "ccyc_estados", name: "Art. 583 CCyC – Estados", key: "estado", source: "ccyc", chartType: "bar" },
-      { id: "modo_estados", name: "Modo de intervención – Estados", key: "estado", source: "modo", chartType: "bar" }
+      { id: "estado", name: "Estado", key: "estado", source: "causas" },
+      { id: "prioridad", name: "Prioridad", key: "prioridad", source: "causas" },
+      { id: "intervencion", name: "Intervención", key: "intervencion", source: "causas" },
+      { id: "audiencias", name: "Audiencias", key: "audiencias", dateFilter: true, source: "causas" },
+      { id: "gesel", name: "Audiencia Gesel", key: "gesel", dateFilter: true, source: "causas" },
+      { id: "vencimiento", name: "Vencimientos", key: "vencimiento", dateFilter: true, source: "causas" },
+      { id: "recursos", name: "Recursos", key: "recursos", source: "causas" },
+      { id: "usuarioAsignado", name: "Usuario Asignado", key: "usuarioAsignado", source: "causas" },
+      { id: "atencion", name: "Atención al Público", key: "type", source: "atencion" },
+      { id: "ccyc_estados", name: "Art. 583 CCyC – Estados", key: "estado", source: "ccyc" },
+      { id: "modo_estados", name: "Modo de intervención – Estados", key: "estado", source: "modo" }
     ];
 
     // === Navegación entre páginas ===
@@ -607,444 +607,185 @@
       cargarDatos();
     }
 
-    // === Carga optimizada de datos ===
-    async function cargarDatos() {
-      loadingOverlay.style.display = "flex";
+    // === Crear gráfico de dona ===
+    function crearGraficoTorta(id){
+      d3.select(id).select("svg").remove();
+      const container = document.getElementById(id.replace("#", ""));
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      const size = Math.min(width, height);
       
-      try {
-        // Cargar datos en paralelo
-        await Promise.all([
-          cargarDatosFirestore(dbCausas, "causas", "datosCacheCausas"),
-          cargarDatosFirestore(dbAtencion, "atencion", "datosCacheAtencion"),
-          cargarExternos()
-        ]);
+      const svg = d3.select(id).append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("viewBox", `0 0 ${size} ${size}`)
+        .attr("preserveAspectRatio", "xMidYMid meet");
         
-        actualizarDashboard();
-      } catch (error) {
-        console.error("Error cargando datos:", error);
-        loadingOverlay.style.display = "none";
-      }
+      const g = svg.append("g").attr("transform", `translate(${size/2}, ${size/2})`);
+      const radius = Math.min(size, size) / 2 - 20;
+      const arc = d3.arc().innerRadius(radius * 0.6).outerRadius(radius);
+      const pie = d3.pie().value(d => d.v).sort(null);
+      
+      return { svg, g, arc, pie, radius };
     }
 
-    async function cargarDatosFirestore(db, coleccion, variableCache) {
-      return new Promise((resolve, reject) => {
-        const q = query(collection(db, coleccion));
+    // === Actualizar gráfico de dona ===
+    function actualizarGraficoTorta(chart, data, key, colorKey, totalId){
+      const agg = d3.rollups(data, d => d.length, d => d[key] || "Sin dato").map(([k, v]) => ({ k, v }));
+      const total = d3.sum(agg, d => d.v);
+      document.getElementById(totalId).textContent = total;
+
+      const arcs = chart.g.selectAll(".arc").data(chart.pie(agg), d => d.data.k);
+      arcs.exit().remove();
+
+      const newArcs = arcs.enter().append("g").attr("class", "arc");
+      newArcs.append("path")
+        .attr("fill", d => (colorScales[colorKey] || colorScales.generic)(d.data.k))
+        .transition().duration(750).attrTween("d", function(d){
+            const i = d3.interpolate(d.startAngle, d.endAngle);
+            return function(t){
+                d.endAngle = i(t);
+                return chart.arc(d);
+            };
+        });
+
+      arcs.select("path").transition().duration(750).attr("d", chart.arc);
+
+      // Actualizar Leyenda
+      const legendContainer = document.getElementById("chart-legend");
+      legendContainer.innerHTML = "";
+      
+      const legendData = agg.sort((a,b) => d3.descending(a.v,b.v));
+      
+      legendData.forEach(item => {
+        const percentage = total > 0 ? ((item.v / total) * 100).toFixed(1) : 0;
         
-        // Usar onSnapshot para obtener datos en tiempo real
-        onSnapshot(q, 
-          (snapshot) => {
-            const arr = [];
-            snapshot.forEach(d => arr.push({ id: d.id, ...d.data() }));
-            window[variableCache] = arr;
-            resolve();
-          }, 
-          (error) => {
-            console.error(`Error cargando ${coleccion}:`, error);
-            reject(error);
-          }
-        );
+        const legendItem = document.createElement("div");
+        legendItem.className = "legend-item";
+        
+        const colorBox = document.createElement("span");
+        colorBox.className = "legend-color";
+        colorBox.style.backgroundColor = (colorScales[colorKey] || colorScales.generic)(item.k);
+        
+        const text = document.createElement("span");
+        text.textContent = `${item.k}: ${item.v} (${percentage}%)`;
+        
+        legendItem.appendChild(colorBox);
+        legendItem.appendChild(text);
+        legendContainer.appendChild(legendItem);
       });
     }
 
-    // === Carga de datos externos ===
-    const urlsExternas = {
-      ccyc: "https://defensoria6.github.io/583ccyc/data.json",
-      modo: "https://defensoria6.github.io/modo-intervencion/data.json"
-    };
-
-    function expandirEstadosDesdeConteos(obj) {
-      const arr = [];
-      const toInt = (x) => Number.isFinite(parseInt(x)) ? parseInt(x) : 0;
-      const activos = toInt(obj?.activos);
-      const cerrados = toInt(obj?.cerrados);
-      const espera  = toInt(obj?.espera);
-      if (activos > 0) arr.push(...Array(activos).fill({ estado: "Activo" }));
-      if (cerrados > 0) arr.push(...Array(cerrados).fill({ estado: "Cerrado" }));
-      if (espera  > 0) arr.push(...Array(espera ).fill({ estado: "En espera" }));
-      return arr;
-    }
-
-    async function cargarExternos() {
-      // Cargar datos CCyC
-      try {
-        const response = await fetch(urlsExternas.ccyc, { cache: "no-store" });
-        if (response.ok) {
-          const data = await response.json();
-          datosCacheCCyC = expandirEstadosDesdeConteos(data);
-        } else {
-          datosCacheCCyC = [];
-        }
-      } catch (error) {
-        console.warn("CCyC sin datos o inaccesible:", error);
-        datosCacheCCyC = [];
-      }
-      
-      // Cargar datos Modo
-      try {
-        const response = await fetch(urlsExternas.modo, { cache: "no-store" });
-        if (response.ok) {
-          const data = await response.json();
-          datosCacheModo = expandirEstadosDesdeConteos(data);
-        } else {
-          datosCacheModo = [];
-        }
-      } catch (error) {
-        console.warn("Modo sin datos o inaccesible:", error);
-        datosCacheModo = [];
-      }
-    }
-
-    // === Funciones para filtrado de datos ===
-    function obtenerDias() {
-      if (filtroRango.value === "semana") return 7;
-      if (filtroRango.value === "mes") return 30;
-      if (filtroRango.value === "anio") return 365;
+    // === Lógica de rangos ===
+    function obtenerDias(){
+      if(filtroRango.value==="semana") return 7;
+      if(filtroRango.value==="mes") return 30;
+      if(filtroRango.value==="anio") return 365;
       return 30;
     }
-
-    function fechaValidaEnRango(valor) {
+    
+    function fechaValidaEnRango(valor){
       const dias = obtenerDias();
-      if (!valor) return false;
+      if(!valor) return false;
       const hoy = new Date();
-      const limite = new Date(hoy);
+      const limite = new Date(hoy); 
       limite.setDate(hoy.getDate() + dias);
-      const toDate = (v) => v && typeof v === "object" && "seconds" in v ? new Date(v.seconds * 1000) : new Date(v);
+      const toDate = (v) => v && typeof v==="object" && "seconds" in v ? new Date(v.seconds * 1000) : new Date(v);
       const d = toDate(valor);
       return !isNaN(d) && d >= hoy && d <= limite;
     }
-
-    function obtenerCampo(obj, posibles) {
-      for (const k of posibles) {
-        if (k in obj && obj[k] != null) return obj[k];
+    
+    function obtenerCampo(obj, posibles){
+      for(const k of posibles){ 
+        if(k in obj && obj[k] != null) return obj[k]; 
       }
       return null;
     }
 
-    // === Renderizado de gráficos modernos ===
-    function crearGraficoBarras(containerId, data, key, colorKey) {
-      const container = document.getElementById(containerId);
-      const width = container.clientWidth;
-      const height = container.clientHeight;
-      
-      d3.select(`#${containerId} svg`).remove();
-      
-      const svg = d3.select(`#${containerId}`)
-        .append("svg")
-        .attr("width", width)
-        .attr("height", height);
-      
-      const margin = { top: 20, right: 20, bottom: 40, left: 60 };
-      const innerWidth = width - margin.left - margin.right;
-      const innerHeight = height - margin.top - margin.bottom;
-      
-      const g = svg.append("g")
-        .attr("transform", `translate(${margin.left},${margin.top})`);
-      
-      // Agrupar datos
-      const aggregated = d3.rollups(data, v => v.length, d => d[key] || "Sin dato")
-        .sort((a, b) => d3.descending(a[1], b[1]));
-      
-      const x = d3.scaleBand()
-        .domain(aggregated.map(d => d[0]))
-        .range([0, innerWidth])
-        .padding(0.2);
-      
-      const y = d3.scaleLinear()
-        .domain([0, d3.max(aggregated, d => d[1])])
-        .range([innerHeight, 0])
-        .nice();
-      
-      // Ejes
-      g.append("g")
-        .attr("transform", `translate(0,${innerHeight})`)
-        .call(d3.axisBottom(x))
-        .selectAll("text")
-        .style("text-anchor", "end")
-        .attr("dx", "-0.5em")
-        .attr("dy", "0.15em")
-        .attr("transform", "rotate(-45)");
-      
-      g.append("g")
-        .call(d3.axisLeft(y).ticks(5));
-      
-      // Barras
-      g.selectAll(".bar")
-        .data(aggregated)
-        .enter().append("rect")
-        .attr("class", "bar")
-        .attr("x", d => x(d[0]))
-        .attr("y", d => y(d[1]))
-        .attr("width", x.bandwidth())
-        .attr("height", d => innerHeight - y(d[1]))
-        .attr("fill", d => (colorScales[colorKey] || colorScales.generic)(d[0]));
-      
-      return aggregated;
-    }
-
-    function crearGraficoTorta(containerId, data, key, colorKey) {
-      const container = document.getElementById(containerId);
-      const width = container.clientWidth;
-      const height = container.clientHeight;
-      const radius = Math.min(width, height) / 2;
-      
-      d3.select(`#${containerId} svg`).remove();
-      
-      const svg = d3.select(`#${containerId}`)
-        .append("svg")
-        .attr("width", width)
-        .attr("height", height)
-        .append("g")
-        .attr("transform", `translate(${width / 2}, ${height / 2})`);
-      
-      const arc = d3.arc()
-        .innerRadius(radius * 0.5)
-        .outerRadius(radius);
-      
-      const pie = d3.pie()
-        .value(d => d[1])
-        .sort(null);
-      
-      const aggregated = d3.rollups(data, v => v.length, d => d[key] || "Sin dato");
-      
-      const arcs = svg.selectAll(".arc")
-        .data(pie(aggregated))
-        .enter().append("g")
-        .attr("class", "arc");
-      
-      arcs.append("path")
-        .attr("d", arc)
-        .attr("fill", d => (colorScales[colorKey] || colorScales.generic)(d.data[0]));
-      
-      return aggregated;
-    }
-
-    function crearGraficoTreemap(containerId, data, key, colorKey) {
-      const container = document.getElementById(containerId);
-      const width = container.clientWidth;
-      const height = container.clientHeight;
-      
-      d3.select(`#${containerId} svg`).remove();
-      
-      const svg = d3.select(`#${containerId}`)
-        .append("svg")
-        .attr("width", width)
-        .attr("height", height);
-      
-      // Agrupar datos
-      const aggregated = d3.rollups(data, v => v.length, d => d[key] || "Sin dato");
-      
-      const root = d3.hierarchy({ values: aggregated }, d => d.values)
-        .sum(d => d[1])
-        .sort((a, b) => b.value - a.value);
-      
-      d3.treemap()
-        .size([width, height])
-        .padding(1)
-        (root);
-      
-      const cell = svg.selectAll("g")
-        .data(root.leaves())
-        .enter().append("g")
-        .attr("transform", d => `translate(${d.x0},${d.y0})`);
-      
-      cell.append("rect")
-        .attr("class", "treemap-rect")
-        .attr("width", d => d.x1 - d.x0)
-        .attr("height", d => d.y1 - d.y0)
-        .attr("fill", d => (colorScales[colorKey] || colorScales.generic)(d.data[0]));
-      
-      cell.append("text")
-        .attr("class", "treemap-text")
-        .attr("x", d => (d.x1 - d.x0) / 2)
-        .attr("y", d => (d.y1 - d.y0) / 2)
-        .attr("dy", "0.35em")
-        .text(d => `${d.data[0]}: ${d.value}`);
-      
-      return aggregated;
-    }
-
-    function crearGraficoLineas(containerId, data, key, colorKey) {
-      const container = document.getElementById(containerId);
-      const width = container.clientWidth;
-      const height = container.clientHeight;
-      
-      d3.select(`#${containerId} svg`).remove();
-      
-      const svg = d3.select(`#${containerId}`)
-        .append("svg")
-        .attr("width", width)
-        .attr("height", height);
-      
-      const margin = { top: 20, right: 20, bottom: 30, left: 50 };
-      const innerWidth = width - margin.left - margin.right;
-      const innerHeight = height - margin.top - margin.bottom;
-      
-      const g = svg.append("g")
-        .attr("transform", `translate(${margin.left},${margin.top})`);
-      
-      // Procesar datos para serie temporal
-      const now = new Date();
-      const days = obtenerDias();
-      const dates = Array.from({ length: days }, (_, i) => {
-        const d = new Date(now);
-        d.setDate(now.getDate() + i);
-        return d;
-      });
-      
-      const dateCounts = dates.map(date => {
-        const count = data.filter(d => {
-          const fieldDate = obtenerCampo(d, [key]);
-          if (!fieldDate) return false;
-          const dDate = fieldDate && typeof fieldDate === "object" && "seconds" in fieldDate ? 
-            new Date(fieldDate.seconds * 1000) : new Date(fieldDate);
-          return dDate.toDateString() === date.toDateString();
-        }).length;
-        return { date, count };
-      });
-      
-      const x = d3.scaleTime()
-        .domain(d3.extent(dates))
-        .range([0, innerWidth]);
-      
-      const y = d3.scaleLinear()
-        .domain([0, d3.max(dateCounts, d => d.count)])
-        .range([innerHeight, 0])
-        .nice();
-      
-      // Línea
-      const line = d3.line()
-        .x(d => x(d.date))
-        .y(d => y(d.count));
-      
-      g.append("path")
-        .datum(dateCounts)
-        .attr("class", "line")
-        .attr("d", line)
-        .attr("stroke", colorScales[colorKey] ? colorScales[colorKey]("default") : colorScales.generic("default"))
-        .attr("stroke-width", 2)
-        .attr("fill", "none");
-      
-      // Ejes
-      g.append("g")
-        .attr("transform", `translate(0,${innerHeight})`)
-        .call(d3.axisBottom(x).ticks(d3.timeDay.every(1)));
-      
-      g.append("g")
-        .call(d3.axisLeft(y));
-      
-      return dateCounts;
-    }
-
-    // === Actualización del dashboard ===
-    function actualizarDashboard() {
+    // === Render principal ===
+    function actualizarDashboard(){
       if (datosCacheCausas === null || datosCacheAtencion === null) return;
-      
+
       loadingOverlay.style.display = "none";
-      
+      if(!chPrincipal) chPrincipal = crearGraficoTorta("#mainChart");
+
       const selectedChartId = chartSelector.value;
       const chartConfig = chartsData.find(c => c.id === selectedChartId);
-      
+
       let data = [];
-      if (chartConfig.source === "atencion") {
+      if(chartConfig.source === "atencion"){
         data = datosCacheAtencion;
-        filtroRango.style.display = "none";
+        document.getElementById("filtroRango").style.display = "none";
       } else if (chartConfig.source === "causas") {
         data = datosCacheCausas;
-        filtroRango.style.display = "block";
-        if (chartConfig.dateFilter) {
+        document.getElementById("filtroRango").style.display = "block";
+        if(chartConfig.dateFilter){
           data = data.filter(d => fechaValidaEnRango(obtenerCampo(d, [chartConfig.key])));
         }
       } else if (chartConfig.source === "ccyc") {
         data = datosCacheCCyC;
-        filtroRango.style.display = "none";
+        document.getElementById("filtroRango").style.display = "none";
       } else if (chartConfig.source === "modo") {
         data = datosCacheModo;
-        filtroRango.style.display = "none";
+        document.getElementById("filtroRango").style.display = "none";
       }
-      
+
       document.getElementById("chartTitle").textContent = chartConfig.name;
-      
+
       if (data.length > 0) {
         noDataOverlay.style.display = "none";
-        
-        let aggregated;
-        // Renderizar gráfico principal según el tipo
-        switch (chartConfig.chartType) {
-          case "bar":
-            aggregated = crearGraficoBarras("mainChart", data, chartConfig.key, chartConfig.key);
-            break;
-          case "treemap":
-            aggregated = crearGraficoTreemap("mainChart", data, chartConfig.key, chartConfig.key);
-            break;
-          case "line":
-            aggregated = crearGraficoLineas("mainChart", data, chartConfig.key, chartConfig.key);
-            break;
-          default:
-            aggregated = crearGraficoTorta("mainChart", data, chartConfig.key, chartConfig.key);
-        }
-        
-        // Actualizar total
-        const total = aggregated.reduce((sum, d) => sum + (Array.isArray(d) ? d[1] : d.value || d.count || 0), 0);
-        document.getElementById("totalGeneral").textContent = total;
-        
-        // Actualizar leyenda
-        const legendContainer = document.getElementById("chart-legend");
-        legendContainer.innerHTML = "";
-        
-        aggregated.forEach((item, i) => {
-          const key = Array.isArray(item) ? item[0] : item.date || "Item";
-          const value = Array.isArray(item) ? item[1] : item.value || item.count || 0;
-          const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-          
-          const legendItem = document.createElement("div");
-          legendItem.className = "legend-item";
-          
-          const colorBox = document.createElement("span");
-          colorBox.className = "legend-color";
-          colorBox.style.backgroundColor = (colorScales[chartConfig.key] || colorScales.generic)(key);
-          
-          const text = document.createElement("span");
-          text.textContent = `${key}: ${value} (${percentage}%)`;
-          
-          legendItem.appendChild(colorBox);
-          legendItem.appendChild(text);
-          legendContainer.appendChild(legendItem);
-        });
+        actualizarGraficoTorta(chPrincipal, data, chartConfig.key, chartConfig.key, "totalGeneral");
         
         // Actualizar gráficos secundarios
         actualizarGraficosSecundarios();
       } else {
         noDataOverlay.style.display = "flex";
         d3.select("#mainChart svg").remove();
-        document.getElementById("totalGeneral").textContent = "0";
         document.getElementById("chart-legend").innerHTML = "";
+        document.getElementById("totalGeneral").textContent = "0";
+        chPrincipal = null;
       }
     }
 
     function actualizarGraficosSecundarios() {
       // Gráfico de resumen (estados)
       if (datosCacheCausas && datosCacheCausas.length > 0) {
-        const estadosAggregated = crearGraficoBarras("summaryChart", datosCacheCausas, "estado", "estado");
+        const summaryChart = crearGraficoTorta("#summaryChart");
+        const agg = d3.rollups(datosCacheCausas, d => d.length, d => d.estado || "Sin dato").map(([k, v]) => ({ k, v }));
+        const totalEstados = d3.sum(agg, d => d.v);
         
+        const arcs = summaryChart.g.selectAll(".arc").data(summaryChart.pie(agg), d => d.data.k);
+        arcs.exit().remove();
+
+        const newArcs = arcs.enter().append("g").attr("class", "arc");
+        newArcs.append("path")
+          .attr("fill", d => colorScales.estado(d.data.k))
+          .transition().duration(750).attrTween("d", function(d){
+              const i = d3.interpolate(d.startAngle, d.endAngle);
+              return function(t){
+                  d.endAngle = i(t);
+                  return summaryChart.arc(d);
+              };
+          });
+
+        arcs.select("path").transition().duration(750).attr("d", summaryChart.arc);
+
+        // Actualizar leyenda de resumen
         const summaryLegend = document.getElementById("summary-legend");
         summaryLegend.innerHTML = "";
         
-        const totalEstados = estadosAggregated.reduce((sum, d) => sum + d[1], 0);
-        
-        estadosAggregated.forEach(item => {
-          const key = item[0];
-          const value = item[1];
-          const percentage = totalEstados > 0 ? ((value / totalEstados) * 100).toFixed(1) : 0;
+        agg.sort((a,b) => d3.descending(a.v,b.v)).forEach(item => {
+          const percentage = totalEstados > 0 ? ((item.v / totalEstados) * 100).toFixed(1) : 0;
           
           const legendItem = document.createElement("div");
           legendItem.className = "legend-item";
           
           const colorBox = document.createElement("span");
           colorBox.className = "legend-color";
-          colorBox.style.backgroundColor = colorScales.estado(key);
+          colorBox.style.backgroundColor = colorScales.estado(item.k);
           
           const text = document.createElement("span");
-          text.textContent = `${key}: ${value} (${percentage}%)`;
+          text.textContent = `${item.k}: ${item.v} (${percentage}%)`;
           
           legendItem.appendChild(colorBox);
           legendItem.appendChild(text);
@@ -1054,29 +795,154 @@
       
       // Gráfico de tendencia (atención al público por día)
       if (datosCacheAtencion && datosCacheAtencion.length > 0) {
-        crearGraficoLineas("trendChart", datosCacheAtencion, "fecha", "type");
+        const container = document.getElementById("trendChart");
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        
+        d3.select("#trendChart svg").remove();
+        
+        const svg = d3.select("#trendChart")
+          .append("svg")
+          .attr("width", width)
+          .attr("height", height);
+        
+        const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+        
+        const g = svg.append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        // Procesar datos para serie temporal
+        const now = new Date();
+        const days = 30; // Mostrar tendencia de 30 días
+        const dates = Array.from({ length: days }, (_, i) => {
+          const d = new Date(now);
+          d.setDate(now.getDate() - (days - 1) + i);
+          return d;
+        });
+        
+        const dateCounts = dates.map(date => {
+          const count = datosCacheAtencion.filter(d => {
+            const fieldDate = d.fecha;
+            if (!fieldDate) return false;
+            const dDate = fieldDate && typeof fieldDate === "object" && "seconds" in fieldDate ? 
+              new Date(fieldDate.seconds * 1000) : new Date(fieldDate);
+            return dDate.toDateString() === date.toDateString();
+          }).length;
+          return { date, count };
+        });
+        
+        const x = d3.scaleTime()
+          .domain(d3.extent(dates))
+          .range([0, innerWidth]);
+        
+        const y = d3.scaleLinear()
+          .domain([0, d3.max(dateCounts, d => d.count)])
+          .range([innerHeight, 0])
+          .nice();
+        
+        // Línea
+        const line = d3.line()
+          .x(d => x(d.date))
+          .y(d => y(d.count));
+        
+        g.append("path")
+          .datum(dateCounts)
+          .attr("class", "line")
+          .attr("d", line)
+          .attr("stroke", colorScales.type("default"))
+          .attr("stroke-width", 2)
+          .attr("fill", "none");
+        
+        // Ejes
+        g.append("g")
+          .attr("transform", `translate(0,${innerHeight})`)
+          .call(d3.axisBottom(x).ticks(d3.timeDay.every(7)));
+        
+        g.append("g")
+          .call(d3.axisLeft(y));
       }
     }
 
-    // === Descargar imagen ===
-    function descargarImagen() {
-      const dashboard = document.getElementById("dashboard");
-      html2canvas(dashboard, {
-        allowTaint: true,
-        useCORS: true,
-        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg') || '#f8f9fa'
-      }).then(canvas => {
-        const link = document.createElement('a');
-        link.download = 'estadisticas-sistema.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+    // === Carga de datos ===
+    function cargarDatos() {
+      loadingOverlay.style.display = "flex";
+      
+      // Suscripción Firestore para causas
+      onSnapshot(query(collection(dbCausas, "causas")), snap => {
+        const arr = [];
+        snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
+        datosCacheCausas = arr;
+        actualizarDashboard();
+      }, err => {
+        console.error("Error al obtener datos de causas:", err);
+        datosCacheCausas = [];
+        actualizarDashboard();
       });
+
+      // Suscripción Firestore para atención
+      onSnapshot(query(collection(dbAtencion, "atencion")), snap => {
+        const arr = [];
+        snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
+        datosCacheAtencion = arr;
+        actualizarDashboard();
+      }, err => {
+        console.error("Error al obtener datos de atenciones:", err);
+        datosCacheAtencion = [];
+        actualizarDashboard();
+      });
+
+      // Cargar datos externos
+      cargarExternos();
     }
 
-    // Inicializar la aplicación
-    document.addEventListener("DOMContentLoaded", function() {
-      // La página de inicio ya está visible por defecto
-    });
+    // === Carga de JSON externos ===
+    const urlsExternas = {
+      ccyc: "https://defensoria6.github.io/583ccyc/data.json",
+      modo: "https://defensoria6.github.io/modo-intervencion/data.json"
+    };
+
+    function expandirEstadosDesdeConteos(obj){
+      const arr = [];
+      const toInt = (x) => Number.isFinite(parseInt(x)) ? parseInt(x) : 0;
+      const activos = toInt(obj?.activos);
+      const cerrados = toInt(obj?.cerrados);
+      const espera  = toInt(obj?.espera);
+      for(let i=0; i<activos; i++) arr.push({estado:"Activo"});
+      for(let i=0; i<cerrados; i++) arr.push({estado:"Cerrado"});
+      for(let i=0; i<espera; i++) arr.push({estado:"En espera"});
+      return arr;
+    }
+
+    async function cargarExternos(){
+      try {
+        const [resCCyC, resModo] = await Promise.all([
+          fetch(urlsExternas.ccyc),
+          fetch(urlsExternas.modo)
+        ]);
+        const dataCCyC = await resCCyC.json();
+        const dataModo = await resModo.json();
+        datosCacheCCyC = expandirEstadosDesdeConteos(dataCCyC);
+        datosCacheModo = expandirEstadosDesdeConteos(dataModo);
+        actualizarDashboard();
+      } catch (err) {
+        console.error("Error al cargar datos externos:", err);
+        datosCacheCCyC = [];
+        datosCacheModo = [];
+        actualizarDashboard();
+      }
+    }
+
+    // === Descargar imagen del dashboard ===
+    function descargarImagen() {
+      html2canvas(document.getElementById("dashboard")).then(canvas => {
+        const enlace = document.createElement("a");
+        enlace.download = "estadisticas-sistema.png";
+        enlace.href = canvas.toDataURL("image/png");
+        enlace.click();
+      });
+    }
   </script>
 </body>
 </html>
