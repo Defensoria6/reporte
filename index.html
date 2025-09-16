@@ -410,7 +410,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-  <!-- Página de inicio -->
   <section class="landing-page" id="landing">
     <img src="https://raw.githubusercontent.com/Defensoria6/sistemacausas/6e384b6af0debea9cc5977cf5abaa0fc7c3fe447/6.png" alt="Icono del Sistema" class="landing-logo">
     <h1 class="landing-title">Estadísticas del Sistema</h1>
@@ -420,7 +419,6 @@
     </button>
   </section>
 
-  <!-- Dashboard (inicialmente oculto) -->
   <section class="dashboard" id="dashboard">
     <button class="back-button" id="btnVolver">
       <i class="fas fa-arrow-left"></i> Volver
@@ -507,25 +505,11 @@
       appId: "1:186064671470:web:b58bae5eadbe6e469f19ff"
     };
     
-    const firebaseConfigAtencion = {
-      apiKey: "AIzaSyDgxLS98sk6GkLrjMu3BVS2cmZ9exdh4dY",
-      authDomain: "atencion-publico-def6.firebaseapp.com",
-      projectId: "atencion-publico-def6",
-      storageBucket: "atencion-publico-def6.firebasestorage.app",
-      messagingSenderId: "1052433106688",
-      appId: "1:1052433106688:web:8ac3e144bcf377ac4b55e5"
-    };
-
     const appCausas = initializeApp(firebaseConfigCausas, "causasApp");
-    const appAtencion = initializeApp(firebaseConfigAtencion, "atencionApp");
     const dbCausas = getFirestore(appCausas);
-    const dbAtencion = getFirestore(appAtencion);
 
     // === Estado ===
     let datosCacheCausas = null;
-    let datosCacheAtencion = null;
-    let datosCacheCCyC = [];
-    let datosCacheModo = [];
     let chPrincipal = null;
 
     // === Elementos DOM ===
@@ -548,7 +532,6 @@
       vencimiento: d3.scaleOrdinal(d3.schemePurples[7]),
       recursos: d3.scaleOrdinal(d3.schemeSet1),
       usuarioAsignado: d3.scaleOrdinal(d3.schemeSet3),
-      type: d3.scaleOrdinal(["#34c759", "#ff9500", "#af52de"]),
       generic: d3.scaleOrdinal(d3.schemeTableau10)
     };
 
@@ -561,10 +544,7 @@
       { id: "gesel", name: "Audiencia Gesel", key: "gesel", dateFilter: true, source: "causas" },
       { id: "vencimiento", name: "Vencimientos", key: "vencimiento", dateFilter: true, source: "causas" },
       { id: "recursos", name: "Recursos", key: "recursos", source: "causas" },
-      { id: "usuarioAsignado", name: "Usuario Asignado", key: "usuarioAsignado", source: "causas" },
-      { id: "atencion", name: "Atención al Público", key: "type", source: "atencion" },
-      { id: "ccyc_estados", name: "Art. 583 CCyC – Estados", key: "estado", source: "ccyc" },
-      { id: "modo_estados", name: "Modo de intervención – Estados", key: "estado", source: "modo" }
+      { id: "usuarioAsignado", name: "Usuario Asignado", key: "usuarioAsignado", source: "causas" }
     ];
 
     // === Navegación entre páginas ===
@@ -629,9 +609,26 @@
       return { svg, g, arc, pie, radius };
     }
 
+    // === Formatear fecha a DD/MM/AAAA ===
+    function formatearFecha(timestamp) {
+      if (!timestamp || !timestamp.toDate) return "Sin dato";
+      const date = timestamp.toDate();
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
     // === Actualizar gráfico de dona ===
     function actualizarGraficoTorta(chart, data, key, colorKey, totalId){
-      const agg = d3.rollups(data, d => d.length, d => d[key] || "Sin dato").map(([k, v]) => ({ k, v }));
+      const agg = d3.rollups(data, d => d.length, d => {
+        const value = d[key];
+        if (value && typeof value.toDate === 'function') {
+          return formatearFecha(value);
+        }
+        return value || "Sin dato";
+      }).map(([k, v]) => ({ k, v }));
+      
       const total = d3.sum(agg, d => d.v);
       document.getElementById(totalId).textContent = total;
 
@@ -704,7 +701,7 @@
 
     // === Render principal ===
     function actualizarDashboard(){
-      if (datosCacheCausas === null || datosCacheAtencion === null) return;
+      if (datosCacheCausas === null) return;
 
       loadingOverlay.style.display = "none";
       if(!chPrincipal) chPrincipal = crearGraficoTorta("#mainChart");
@@ -712,23 +709,12 @@
       const selectedChartId = chartSelector.value;
       const chartConfig = chartsData.find(c => c.id === selectedChartId);
 
-      let data = [];
-      if(chartConfig.source === "atencion"){
-        data = datosCacheAtencion;
-        document.getElementById("filtroRango").style.display = "none";
-      } else if (chartConfig.source === "causas") {
-        data = datosCacheCausas;
-        document.getElementById("filtroRango").style.display = "block";
-        if(chartConfig.dateFilter){
-          data = data.filter(d => fechaValidaEnRango(obtenerCampo(d, [chartConfig.key])));
-        }
-      } else if (chartConfig.source === "ccyc") {
-        data = datosCacheCCyC;
-        document.getElementById("filtroRango").style.display = "none";
-      } else if (chartConfig.source === "modo") {
-        data = datosCacheModo;
-        document.getElementById("filtroRango").style.display = "none";
+      let data = datosCacheCausas;
+      document.getElementById("filtroRango").style.display = "block";
+      if(chartConfig.dateFilter){
+        data = data.filter(d => fechaValidaEnRango(obtenerCampo(d, [chartConfig.key])));
       }
+      
 
       document.getElementById("chartTitle").textContent = chartConfig.name;
 
@@ -794,7 +780,7 @@
       }
       
       // Gráfico de tendencia (atención al público por día)
-      if (datosCacheAtencion && datosCacheAtencion.length > 0) {
+      if (datosCacheCausas && datosCacheCausas.length > 0) {
         const container = document.getElementById("trendChart");
         const width = container.clientWidth;
         const height = container.clientHeight;
@@ -823,8 +809,8 @@
         });
         
         const dateCounts = dates.map(date => {
-          const count = datosCacheAtencion.filter(d => {
-            const fieldDate = d.fecha;
+          const count = datosCacheCausas.filter(d => {
+            const fieldDate = d.fechaCreacion; // Asumiendo un campo de fecha de creación
             if (!fieldDate) return false;
             const dDate = fieldDate && typeof fieldDate === "object" && "seconds" in fieldDate ? 
               new Date(fieldDate.seconds * 1000) : new Date(fieldDate);
@@ -851,7 +837,7 @@
           .datum(dateCounts)
           .attr("class", "line")
           .attr("d", line)
-          .attr("stroke", colorScales.type("default"))
+          .attr("stroke", colorScales.generic("default"))
           .attr("stroke-width", 2)
           .attr("fill", "none");
         
@@ -880,58 +866,6 @@
         datosCacheCausas = [];
         actualizarDashboard();
       });
-
-      // Suscripción Firestore para atención
-      onSnapshot(query(collection(dbAtencion, "atencion")), snap => {
-        const arr = [];
-        snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
-        datosCacheAtencion = arr;
-        actualizarDashboard();
-      }, err => {
-        console.error("Error al obtener datos de atenciones:", err);
-        datosCacheAtencion = [];
-        actualizarDashboard();
-      });
-
-      // Cargar datos externos
-      cargarExternos();
-    }
-
-    // === Carga de JSON externos ===
-    const urlsExternas = {
-      ccyc: "https://defensoria6.github.io/583ccyc/data.json",
-      modo: "https://defensoria6.github.io/modo-intervencion/data.json"
-    };
-
-    function expandirEstadosDesdeConteos(obj){
-      const arr = [];
-      const toInt = (x) => Number.isFinite(parseInt(x)) ? parseInt(x) : 0;
-      const activos = toInt(obj?.activos);
-      const cerrados = toInt(obj?.cerrados);
-      const espera  = toInt(obj?.espera);
-      for(let i=0; i<activos; i++) arr.push({estado:"Activo"});
-      for(let i=0; i<cerrados; i++) arr.push({estado:"Cerrado"});
-      for(let i=0; i<espera; i++) arr.push({estado:"En espera"});
-      return arr;
-    }
-
-    async function cargarExternos(){
-      try {
-        const [resCCyC, resModo] = await Promise.all([
-          fetch(urlsExternas.ccyc),
-          fetch(urlsExternas.modo)
-        ]);
-        const dataCCyC = await resCCyC.json();
-        const dataModo = await resModo.json();
-        datosCacheCCyC = expandirEstadosDesdeConteos(dataCCyC);
-        datosCacheModo = expandirEstadosDesdeConteos(dataModo);
-        actualizarDashboard();
-      } catch (err) {
-        console.error("Error al cargar datos externos:", err);
-        datosCacheCCyC = [];
-        datosCacheModo = [];
-        actualizarDashboard();
-      }
     }
 
     // === Descargar imagen del dashboard ===
