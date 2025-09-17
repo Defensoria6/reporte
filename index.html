@@ -506,7 +506,6 @@
       appId: "1:186064671470:web:b58bae5eadbe6e469f19ff"
     };
     
-    // Aquí debes colocar tu propia configuración para la base de datos de Atención al Público
     const firebaseConfigAtencion = {
       apiKey: "AIzaSyDgxLS98sk6GkLrjMu3BVS2cmZ9exdh4dY",
       authDomain: "atencion-publico-def6.firebaseapp.com",
@@ -572,19 +571,15 @@
     });
 
     btnVolver.addEventListener("click", () => {
-      // Limpiar dashboard antes de volver
       d3.selectAll("#mainChart svg, #summaryChart svg, #trendChart svg").remove();
       document.getElementById("chart-legend").innerHTML = "";
       document.getElementById("summary-legend").innerHTML = "";
-      
-      // Ocultar dashboard y mostrar landing
       dashboardPage.style.display = "none";
       landingPage.style.display = "flex";
     });
 
     // === Inicialización del dashboard ===
     function initDashboard() {
-      // Poblar selector de gráficos
       chartSelector.innerHTML = "";
       chartsData.forEach(c => {
         const option = document.createElement("option");
@@ -593,14 +588,12 @@
         chartSelector.appendChild(option);
       });
 
-      // Configurar event listeners
       chartSelector.addEventListener("change", actualizarDashboard);
       filtroRango.addEventListener("change", actualizarDashboard);
       document.getElementById("btnRefresh").addEventListener("click", cargarDatos);
       document.getElementById("btnPrintDashboard").addEventListener("click", () => window.print());
       document.getElementById("btnDownload").addEventListener("click", descargarImagen);
 
-      // Iniciar carga de datos
       cargarDatos();
     }
 
@@ -665,7 +658,6 @@
 
       arcs.select("path").transition().duration(750).attr("d", chart.arc);
 
-      // Actualizar Leyenda
       const legendContainer = document.getElementById("chart-legend");
       legendContainer.innerHTML = "";
       
@@ -703,10 +695,10 @@
       if(!valor) return false;
       const hoy = new Date();
       const limite = new Date(hoy); 
-      limite.setDate(hoy.getDate() + dias);
+      limite.setDate(hoy.getDate() - dias); // 👈 cambio: hacia atrás
       const toDate = (v) => v && typeof v==="object" && "seconds" in v ? new Date(v.seconds * 1000) : new Date(v);
       const d = toDate(valor);
-      return !isNaN(d) && d >= hoy && d <= limite;
+      return !isNaN(d) && d >= limite && d <= hoy; // 👈 ahora compara pasado hasta hoy
     }
     
     function obtenerCampo(obj, posibles){
@@ -743,8 +735,6 @@
       if (data.length > 0) {
         noDataOverlay.style.display = "none";
         actualizarGraficoTorta(chPrincipal, data, chartConfig.key, chartConfig.key, "totalGeneral");
-        
-        // Actualizar gráficos secundarios
         actualizarGraficosSecundarios();
       } else {
         noDataOverlay.style.display = "flex";
@@ -756,7 +746,6 @@
     }
 
     function actualizarGraficosSecundarios() {
-      // Gráfico de resumen (estados)
       if (datosCacheCausas && datosCacheCausas.length > 0) {
         const summaryChart = crearGraficoTorta("#summaryChart");
         const agg = d3.rollups(datosCacheCausas, d => d.length, d => d.estado || "Sin dato").map(([k, v]) => ({ k, v }));
@@ -778,30 +767,24 @@
 
         arcs.select("path").transition().duration(750).attr("d", summaryChart.arc);
 
-        // Actualizar leyenda de resumen
         const summaryLegend = document.getElementById("summary-legend");
         summaryLegend.innerHTML = "";
         
         agg.sort((a,b) => d3.descending(a.v,b.v)).forEach(item => {
           const percentage = totalEstados > 0 ? ((item.v / totalEstados) * 100).toFixed(1) : 0;
-          
           const legendItem = document.createElement("div");
           legendItem.className = "legend-item";
-          
           const colorBox = document.createElement("span");
           colorBox.className = "legend-color";
           colorBox.style.backgroundColor = colorScales.estado(item.k);
-          
           const text = document.createElement("span");
           text.textContent = `${item.k}: ${item.v} (${percentage}%)`;
-          
           legendItem.appendChild(colorBox);
           legendItem.appendChild(text);
           summaryLegend.appendChild(legendItem);
         });
       }
       
-      // Gráfico de tendencia (atención al público por día)
       if (datosCacheAtencion && datosCacheAtencion.length > 0) {
         const container = document.getElementById("trendChart");
         const width = container.clientWidth;
@@ -821,9 +804,8 @@
         const g = svg.append("g")
           .attr("transform", `translate(${margin.left},${margin.top})`);
         
-        // Procesar datos para serie temporal
         const now = new Date();
-        const days = 30; // Mostrar tendencia de 30 días
+        const days = 30; 
         const dates = Array.from({ length: days }, (_, i) => {
           const d = new Date(now);
           d.setDate(now.getDate() - (days - 1) + i);
@@ -849,7 +831,6 @@
           .range([innerHeight, 0])
           .nice();
         
-        // Línea
         const line = d3.line()
           .x(d => x(d.date))
           .y(d => y(d.count));
@@ -862,7 +843,6 @@
           .attr("stroke-width", 2)
           .attr("fill", "none");
         
-        // Ejes
         g.append("g")
           .attr("transform", `translate(0,${innerHeight})`)
           .call(d3.axisBottom(x).ticks(d3.timeDay.every(7)));
@@ -872,11 +852,9 @@
       }
     }
 
-    // === Carga de datos ===
     function cargarDatos() {
       loadingOverlay.style.display = "flex";
       
-      // Suscripción Firestore para causas
       onSnapshot(query(collection(dbCausas, "causas")), snap => {
         const arr = [];
         snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
@@ -888,7 +866,6 @@
         actualizarDashboard();
       });
 
-      // Suscripción Realtime Database para atención
       onValue(ref(dbAtencion, "atencion"), snap => {
         const data = snap.val();
         const arr = data ? Object.values(data) : [];
@@ -901,7 +878,6 @@
       });
     }
 
-    // === Descargar imagen del dashboard ===
     function descargarImagen() {
       html2canvas(document.getElementById("dashboard")).then(canvas => {
         const enlace = document.createElement("a");
