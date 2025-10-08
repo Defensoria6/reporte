@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Estadísticas del Sistema</title>
+  <title>Estadísticas</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root {
@@ -405,14 +405,41 @@
       text-anchor: middle;
       pointer-events: none;
     }
+
+    /* Estilos para el iframe del informe trimestral */
+    .informe-trimestral-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      z-index: 1000;
+      display: none;
+      flex-direction: column;
+    }
+
+    .informe-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background: var(--primary);
+      color: white;
+    }
+
+    .informe-iframe {
+      flex: 1;
+      border: none;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
   <section class="landing-page" id="landing">
-    <h1 class="landing-title">Estadísticas del Sistema</h1>
-    <p class="landing-subtitle">Acceda a informes detallados y análisis visual de los datos del sistema</p>
+    <h1 class="landing-title">Estadísticas</h1>
+    <p class="landing-subtitle">Informes detallados y análisis visual de los datos estadísticos</p>
     <button class="btn-ingresar" id="btnIngresar">
       Ingresar <i class="fas fa-arrow-right"></i>
     </button>
@@ -424,7 +451,7 @@
     </button>
 
     <header>
-      <h1>Estadísticas del Sistema</h1>
+      <h2>Estadísticas Defensoría Civil y Comercial 6</h2>
       <h5>Diseño y programación de Rómulo Fioravante. Leg2481. Año 2025</h5>
       <div class="filters">
         <div class="filter-group">
@@ -486,8 +513,22 @@
       <button id="btnRefresh" class="btn btn-secondary">
         <i class="fas fa-sync-alt"></i> Actualizar Datos
       </button>
+      <button id="btnInformeTrimestral" class="btn" style="background: var(--success);">
+        <i class="fas fa-file-alt"></i> Informe Trimestral Oficial
+      </button>
     </div>
   </section>
+
+  <!-- Contenedor para el informe trimestral -->
+  <div class="informe-trimestral-container" id="informeTrimestral">
+    <div class="informe-header">
+      <h2>Informe Trimestral Oficial</h2>
+      <button id="btnCerrarInforme" class="btn" style="background: var(--danger);">
+        <i class="fas fa-times"></i> Cerrar
+      </button>
+    </div>
+    <iframe src="https://sistema-secretarios.github.io/estadistica/" class="informe-iframe"></iframe>
+  </div>
 
   <script type="module">
     // Importación de Firebase
@@ -534,6 +575,9 @@
     const noDataOverlay = document.getElementById("no-data");
     const chartSelector = document.getElementById("chartSelector");
     const filtroRango = document.getElementById("filtroRango");
+    const btnInformeTrimestral = document.getElementById("btnInformeTrimestral");
+    const informeTrimestral = document.getElementById("informeTrimestral");
+    const btnCerrarInforme = document.getElementById("btnCerrarInforme");
 
     // === Paletas de colores ===
     const colorScales = {
@@ -575,6 +619,15 @@
       document.getElementById("summary-legend").innerHTML = "";
       dashboardPage.style.display = "none";
       landingPage.style.display = "flex";
+    });
+
+    // === Mostrar/ocultar informe trimestral ===
+    btnInformeTrimestral.addEventListener("click", () => {
+      informeTrimestral.style.display = "flex";
+    });
+
+    btnCerrarInforme.addEventListener("click", () => {
+      informeTrimestral.style.display = "none";
     });
 
     // === Inicialización del dashboard ===
@@ -878,11 +931,12 @@
     }
 
     function descargarImagen() {
-      html2canvas(document.getElementById("dashboard")).then(canvas => {
-        const enlace = document.createElement("a");
-        enlace.download = "estadisticas-sistema.png";
-        enlace.href = canvas.toDataURL("image/png");
-        enlace.click();
+      const card = document.querySelector(".card");
+      html2canvas(card).then(canvas => {
+        const link = document.createElement("a");
+        link.download = "estadisticas.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
       });
     }
   </script>
