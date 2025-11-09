@@ -42,101 +42,206 @@
       -moz-osx-font-smoothing: grayscale;
     }
 
-    /* ===== PÁGINA DE INICIO ===== */
+    /* ===== NUEVO LANDING PAGE ===== */
     .landing-page {
       min-height: 100vh;
       display: flex;
-      flex-direction: column;
       justify-content: center;
       align-items: center;
-      text-align: center;
-      padding: 2rem;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 1000px;
+      display: flex;
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      min-height: 550px;
+      border: 1px solid var(--border);
+    }
+
+    .left-panel {
+      flex: 1;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      padding: 50px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
       position: relative;
       overflow: hidden;
     }
 
-    .landing-page::before {
+    .left-panel::before {
       content: '';
       position: absolute;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
-      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0,0 L100,0 L100,100 Z" fill="rgba(255,255,255,0.07)"/></svg>');
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0,0 L100,0 L100,100 Z" fill="rgba(255,255,255,0.03)"/></svg>');
       background-size: cover;
-      pointer-events: none;
     }
 
-    .landing-logo {
-      width: 120px;
-      height: 120px;
-      margin-bottom: 1.5rem;
-      border-radius: 50%;
-      box-shadow: var(--shadow-lg);
-      transition: var(--transition);
-      background: white;
-      padding: 15px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .landing-logo:hover {
-      transform: scale(1.05);
-    }
-
-    .landing-title {
-      font-size: 2.8rem;
-      font-weight: 800;
+    .brand-content {
       color: white;
-      margin-bottom: 0.5rem;
-      letter-spacing: -0.5px;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      z-index: 2;
       position: relative;
-      z-index: 1;
+      text-align: center;
     }
 
-    .landing-subtitle {
-      font-size: 1.2rem;
+    .brand-title {
+      font-size: 2.8rem;
+      font-weight: 700;
+      margin-bottom: 15px;
+      line-height: 1.1;
+    }
+
+    .brand-subtitle {
+      font-size: 1.4rem;
       color: rgba(255, 255, 255, 0.9);
-      margin-bottom: 3rem;
-      max-width: 600px;
-      position: relative;
-      z-index: 1;
+      margin-bottom: 30px;
+      font-weight: 500;
+    }
+
+    .platform-description {
+      font-size: 1.1rem;
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.6;
+      margin-top: 20px;
+    }
+
+    .right-panel {
+      flex: 0.8;
+      background: var(--card);
+      padding: 50px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-left: 1px solid var(--border);
+    }
+
+    .access-content {
+      text-align: center;
+    }
+
+    .access-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 25px;
+      box-shadow: var(--shadow);
+    }
+
+    .access-icon i {
+      font-size: 35px;
+      color: white;
+    }
+
+    .access-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+
+    .access-subtitle {
+      color: var(--text-muted);
+      margin-bottom: 30px;
+      font-size: 0.95rem;
     }
 
     .btn-ingresar {
-      display: inline-flex;
+      display: flex;
       align-items: center;
       justify-content: center;
-      background-color: white;
-      color: #667eea;
-      font-size: 1.2rem;
-      font-weight: 600;
-      padding: 1rem 2.5rem;
-      border-radius: 50px;
-      text-decoration: none;
-      box-shadow: var(--shadow-lg);
-      transition: var(--transition);
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      color: white;
       border: none;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 600;
       cursor: pointer;
-      position: relative;
-      z-index: 1;
+      transition: var(--transition);
+      text-align: center;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+      gap: 0.5rem;
     }
 
     .btn-ingresar:hover {
-      background-color: #f8f9fa;
-      transform: translateY(-3px);
-      box-shadow: 0 12px 20px rgba(0, 0, 0, 0.2);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
     }
 
-    .btn-ingresar i {
-      margin-left: 0.5rem;
-      transition: var(--transition);
+    .credit-section {
+      margin-top: 40px;
+      padding-top: 25px;
+      border-top: 1px solid var(--border);
     }
 
-    .btn-ingresar:hover i {
-      transform: translateX(4px);
+    .credit-title {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-bottom: 5px;
+    }
+
+    .developer {
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      .login-container {
+        flex-direction: column;
+        max-width: 500px;
+      }
+      
+      .left-panel, .right-panel {
+        padding: 40px 30px;
+      }
+      
+      .right-panel {
+        border-left: none;
+        border-top: 1px solid var(--border);
+      }
+      
+      .brand-title {
+        font-size: 2.3rem;
+      }
+      
+      .brand-subtitle {
+        font-size: 1.3rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .landing-page {
+        padding: 10px;
+      }
+      
+      .left-panel, .right-panel {
+        padding: 30px 20px;
+      }
+      
+      .brand-title {
+        font-size: 2rem;
+      }
+      
+      .brand-subtitle {
+        font-size: 1.1rem;
+      }
     }
 
     /* ===== DASHBOARD (oculto inicialmente) ===== */
@@ -437,12 +542,38 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
+  <!-- NUEVO LANDING PAGE -->
   <section class="landing-page" id="landing">
-    <h1 class="landing-title">Estadísticas</h1>
-    <p class="landing-subtitle">Informes detallados y análisis visual de los datos estadísticos</p>
-    <button class="btn-ingresar" id="btnIngresar">
-      Ingresar <i class="fas fa-arrow-right"></i>
-    </button>
+    <div class="login-container">
+      <!-- Panel izquierdo - Información -->
+      <div class="left-panel">
+        <div class="brand-content">
+          <h3 class="brand-title">Sistema Digital</h3>
+          <h2 class="brand-subtitle">Estadísticas Defensoría Civil y Comercial 6</h2>
+          <p class="platform-description">Plataforma de análisis y visualización de datos estadísticos. Informes detallados y métricas en tiempo real.</p>
+        </div>
+      </div>
+
+      <!-- Panel derecho - Acceso -->
+      <div class="right-panel">
+        <div class="access-content">
+          <div class="access-icon">
+            <i class="fas fa-chart-bar"></i>
+          </div>
+          <h2 class="access-title">Acceso al Sistema</h2>
+          <p class="access-subtitle">Informes estadísticos autorizados</p>
+          
+          <button class="btn-ingresar" id="btnIngresar">
+            <i class="fas fa-sign-in-alt"></i> Ingresar al Sistema
+          </button>
+          
+          <div class="credit-section">
+            <div class="credit-title">Desarrollado por:</div>
+            <div class="developer">Rómulo Fioravante - Leg. 2481 - 2025</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <section class="dashboard" id="dashboard">
